@@ -69,7 +69,7 @@ async def on_ready():
     # Set about me
     about_me = {
         "name": "PorkBot",
-        "description": "A moderation and management bot for Porkchop SMP",
+        "description": "Made by <@799190402896494612> to guard Porkchop SMP. Join today discord.gg/porkchopsmp.",
         "version": "1.0.0",
         "features": [
             "Moderation commands",
