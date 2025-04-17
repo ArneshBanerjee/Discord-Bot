@@ -35,6 +35,9 @@ ROLE_PERMISSIONS = {
     1322090684810924033: ['*']
 }
 
+# Store reaction rules
+reaction_rules = {}
+
 client = discord.Client(intents=intents)
 
 def has_command_permission(member, command):
@@ -60,6 +63,146 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
+    
+    # Check for reaction rules
+    for target, emoji in reaction_rules.items():
+        # Check if message mentions the target user
+        if message.mentions:
+            for mention in message.mentions:
+                if target.lower() in mention.name.lower() or target.lower() in str(mention.id):
+                    try:
+                        await message.add_reaction(emoji)
+                    except discord.HTTPException:
+                        pass
+        
+        # Check if message contains the target name
+        if target.lower() in message.content.lower():
+            try:
+                await message.add_reaction(emoji)
+            except discord.HTTPException:
+                pass
+    
+    # Handle reaction rule commands
+    if message.content.startswith('?reaction'):
+        if not has_command_permission(message.author, 'reaction'):
+            error_embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="You don't have permission to use this command!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+        
+        args = message.content.split()
+        if len(args) < 2:
+            help_embed = discord.Embed(
+                title="ℹ️ Reaction Command Help",
+                description="Usage: ?reaction <add/remove/list> [target] [emoji]",
+                color=discord.Color.blue()
+            )
+            help_embed.add_field(
+                name="Commands",
+                value="```?reaction add <target> <emoji>\n?reaction remove <target>\n?reaction list```",
+                inline=False
+            )
+            help_embed.add_field(
+                name="Examples",
+                value="?reaction add @user 😊\n?reaction add username 😊\n?reaction remove @user\n?reaction list",
+                inline=False
+            )
+            await message.channel.send(embed=help_embed)
+            return
+        
+        command = args[1].lower()
+        
+        if command == "add":
+            if len(args) < 4:
+                error_embed = discord.Embed(
+                    title="❌ Missing Arguments",
+                    description="Usage: ?reaction add <target> <emoji>",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=error_embed)
+                return
+            
+            target = args[2]
+            emoji = args[3]
+            
+            # If target is a mention, extract the user ID
+            if target.startswith('<@') and target.endswith('>'):
+                target = target.strip('<@!>')
+            
+            reaction_rules[target] = emoji
+            
+            success_embed = discord.Embed(
+                title="✅ Reaction Rule Added",
+                description=f"Added reaction rule for '{target}' with emoji {emoji}",
+                color=discord.Color.green()
+            )
+            await message.channel.send(embed=success_embed)
+            
+        elif command == "remove":
+            if len(args) < 3:
+                error_embed = discord.Embed(
+                    title="❌ Missing Arguments",
+                    description="Usage: ?reaction remove <target>",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=error_embed)
+                return
+            
+            target = args[2]
+            
+            # If target is a mention, extract the user ID
+            if target.startswith('<@') and target.endswith('>'):
+                target = target.strip('<@!>')
+            
+            if target in reaction_rules:
+                del reaction_rules[target]
+                success_embed = discord.Embed(
+                    title="✅ Reaction Rule Removed",
+                    description=f"Removed reaction rule for '{target}'",
+                    color=discord.Color.green()
+                )
+            else:
+                error_embed = discord.Embed(
+                    title="❌ Rule Not Found",
+                    description=f"No reaction rule found for '{target}'",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=error_embed)
+                return
+            
+            await message.channel.send(embed=success_embed)
+            
+        elif command == "list":
+            if not reaction_rules:
+                info_embed = discord.Embed(
+                    title="ℹ️ No Reaction Rules",
+                    description="There are no active reaction rules.",
+                    color=discord.Color.blue()
+                )
+            else:
+                info_embed = discord.Embed(
+                    title="ℹ️ Active Reaction Rules",
+                    description="Current reaction rules:",
+                    color=discord.Color.blue()
+                )
+                for target, emoji in reaction_rules.items():
+                    info_embed.add_field(
+                        name=f"Target: {target}",
+                        value=f"Emoji: {emoji}",
+                        inline=False
+                    )
+            await message.channel.send(embed=info_embed)
+            
+        else:
+            error_embed = discord.Embed(
+                title="❌ Invalid Command",
+                description="Valid commands: add, remove, list",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
     
     # Handle member count command
     if message.content.startswith('?memcount'):
