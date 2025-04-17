@@ -58,6 +58,29 @@ def has_command_permission(member, command):
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
+    
+    # Set custom status
+    activity = discord.Activity(
+        type=discord.ActivityType.watching,  # You can change this to playing, listening, etc.
+        name="over Porkchop SMP"  # Custom status text
+    )
+    await client.change_presence(activity=activity, status=discord.Status.online)
+    
+    # Set about me
+    about_me = {
+        "name": "PorkBot",
+        "description": "A moderation and management bot for Porkchop SMP",
+        "version": "1.0.0",
+        "features": [
+            "Moderation commands",
+            "Server management",
+            "Automatic reactions",
+            "Member tracking"
+        ]
+    }
+    
+    # You can access this information later if needed
+    client.about_me = about_me
 
 @client.event
 async def on_message(message):
@@ -1484,5 +1507,30 @@ async def on_message(message):
                 # Remove reactions if something goes wrong
                 await help_message.clear_reactions()
                 break
+
+    # Handle about command
+    if message.content.startswith('?about'):
+        about_embed = discord.Embed(
+            title=f"🤖 About {client.about_me['name']}",
+            description=client.about_me['description'],
+            color=discord.Color.blue()
+        )
+        about_embed.add_field(
+            name="Version",
+            value=client.about_me['version'],
+            inline=True
+        )
+        about_embed.add_field(
+            name="Features",
+            value="\n".join(f"• {feature}" for feature in client.about_me['features']),
+            inline=False
+        )
+        about_embed.add_field(
+            name="Status",
+            value="Online and watching over Porkchop SMP",
+            inline=False
+        )
+        about_embed.set_footer(text=f"Requested by {message.author.name}")
+        await message.channel.send(embed=about_embed)
 
 client.run(os.getenv('DISCORD_TOKEN'))
