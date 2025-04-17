@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import asyncio
 import re
 import random
-from database import Database
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,178 +15,30 @@ intents.message_content = True  # Enable message content intent
 intents.members = True  # Enable member intents for muting
 
 # Define channel IDs
-MOD_LOG_CHANNEL_ID = 1362378249044496626  # Channel for moderation logs
-
-# Leveling system configuration
-LEVEL_ROLES = {
-    10: "Copper",
-    25: "Iron",
-    50: "Lapis",
-    75: "Gold",
-    100: "Diamond",
-    125: "Emerald",
-    150: "Netherite"
-}
-
-# XP configuration
-MIN_XP = 15
-MAX_XP = 25
-COOLDOWN = 60  # seconds between XP gains
-
-# Initialize database
-db = Database()
+MOD_LOG_CHANNEL_ID = 1094940763441336340  # Channel for moderation logs
+STAFF_ROLE_ID = 1322109984036622346  # Role ID for staff members
 
 client = discord.Client(intents=intents)
+
+def has_staff_role(member):
+    """Check if a member has the staff role."""
+    return any(role.id == STAFF_ROLE_ID for role in member.roles)
 
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
-    # Start the weekly leaderboard check
-    client.loop.create_task(weekly_leaderboard_check())
 
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
     
-    # Handle XP gain
-    if not message.author.bot:
-        # Check cooldown
-        conn = db.get_connection()
-        c = conn.cursor()
-        c.execute('SELECT last_message_time FROM users WHERE user_id = ?', (message.author.id,))
-        result = c.fetchone()
-        conn.close()
-        
-        current_time = int(datetime.now().timestamp())
-        if not result or (current_time - result[0]) >= COOLDOWN:
-            # Generate random XP
-            xp_gain = random.randint(MIN_XP, MAX_XP)
-            new_xp, new_level, old_level = db.update_user_xp(message.author.id, xp_gain)
-            
-            # Check for level up
-            if new_level > old_level:
-                # Create level up embed
-                level_embed = discord.Embed(
-                    title="🎉 Level Up!",
-                    description=f"{message.author.mention} has reached level {new_level}!",
-                    color=discord.Color.green()
-                )
-                level_embed.add_field(
-                    name="Current XP",
-                    value=f"{new_xp}/{db.xp_for_level(new_level)}",
-                    inline=True
-                )
-                await message.channel.send(embed=level_embed)
-                
-                # Check for role upgrades
-                for level, role_name in LEVEL_ROLES.items():
-                    if new_level >= level and old_level < level:
-                        # Get or create role
-                        role = discord.utils.get(message.guild.roles, name=role_name)
-                        if not role:
-                            role = await message.guild.create_role(name=role_name)
-                        
-                        # Add role to user
-                        await message.author.add_roles(role)
-                        
-                        # Send role notification
-                        role_embed = discord.Embed(
-                            title="🎖️ New Role Unlocked!",
-                            description=f"{message.author.mention} has earned the {role.mention} role!",
-                            color=discord.Color.gold()
-                        )
-                        await message.channel.send(embed=role_embed)
-    
-    # Handle level command
-    if message.content.startswith('?level'):
-        stats = db.get_user_stats(message.author.id)
-        
-        # Create level embed
-        level_embed = discord.Embed(
-            title=f"📊 {message.author.name}'s Level Stats",
-            color=discord.Color.blue()
-        )
-        
-        # Add level progress bar
-        progress = stats['progress']
-        filled_blocks = int(progress / 10)
-        progress_bar = "█" * filled_blocks + "░" * (10 - filled_blocks)
-        
-        level_embed.add_field(
-            name="Level",
-            value=f"```{stats['level']}```",
-            inline=True
-        )
-        level_embed.add_field(
-            name="XP",
-            value=f"```{stats['xp']}/{stats['next_level_xp']}```",
-            inline=True
-        )
-        level_embed.add_field(
-            name="Progress",
-            value=f"```{progress_bar} {progress:.1f}%```",
-            inline=False
-        )
-        if stats['rank']:
-            level_embed.add_field(
-                name="Server Rank",
-                value=f"```#{stats['rank']}```",
-                inline=True
-            )
-        
-        # Add user avatar
-        level_embed.set_thumbnail(url=message.author.avatar.url if message.author.avatar else message.author.default_avatar.url)
-        
-        # Add footer with timestamp
-        level_embed.set_footer(text=f"Requested at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        await message.channel.send(embed=level_embed)
-    
-    # Handle leaderboard command
-    if message.content.startswith('?leaderboard') or message.content.startswith('?lb'):
-        top_users = db.get_top_users()
-        if not top_users:
-            await message.channel.send("No users found in the leaderboard!")
-            return
-        
-        # Create leaderboard embed
-        leaderboard_embed = discord.Embed(
-            title="🏆 Weekly Leaderboard",
-            description="Top 10 highest level users in the server",
-            color=discord.Color.gold()
-        )
-        
-        # Add server icon if available
-        if message.guild.icon:
-            leaderboard_embed.set_thumbnail(url=message.guild.icon.url)
-        
-        # Format leaderboard entries
-        leaderboard_text = ""
-        for i, (user_id, level, xp) in enumerate(top_users, 1):
-            user = await client.fetch_user(user_id)
-            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-            leaderboard_text += f"{medal} **{user.name}**\n"
-            leaderboard_text += f"```Level: {level} | XP: {xp:,}```\n"
-        
-        leaderboard_embed.add_field(
-            name="Top Players",
-            value=leaderboard_text,
-            inline=False
-        )
-        
-        # Add footer with timestamp
-        leaderboard_embed.set_footer(text=f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        await message.channel.send(embed=leaderboard_embed)
-    
     # Handle member count command
     if message.content.startswith('?memcount'):
-        # Check if user has administrator permission
-        if not message.author.guild_permissions.administrator:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need Administrator permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -238,11 +89,10 @@ async def on_message(message):
     
     # Handle unban command
     if message.content.startswith('?unban'):
-        # Check if user has permission to unban
-        if not message.author.guild_permissions.ban_members:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -340,11 +190,10 @@ async def on_message(message):
     
     # Handle ban command
     if message.content.startswith('?ban'):
-        # Check if user has permission to ban
-        if not message.author.guild_permissions.ban_members:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -470,11 +319,10 @@ async def on_message(message):
     
     # Handle unmute command
     if message.content.startswith('?unmute'):
-        # Check if user has permission to unmute
-        if not message.author.guild_permissions.moderate_members:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -570,11 +418,10 @@ async def on_message(message):
     
     # Handle kick command
     if message.content.startswith('?kick'):
-        # Check if user has permission to kick
-        if not message.author.guild_permissions.kick_members:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -678,11 +525,10 @@ async def on_message(message):
     
     # Handle mute command
     if message.content.startswith('?mute'):
-        # Check if user has permission to mute
-        if not message.author.guild_permissions.moderate_members:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -964,11 +810,10 @@ async def on_message(message):
 
     # Purge command
     if message.content.startswith('?purge'):
-        # Check if user has permission to manage messages
-        if not message.author.guild_permissions.manage_messages:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1055,11 +900,10 @@ async def on_message(message):
     
     # Slowmode command
     if message.content.startswith('?slowmode'):
-        # Check if user has permission to manage channels
-        if not message.author.guild_permissions.manage_channels:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1129,11 +973,10 @@ async def on_message(message):
     
     # Lock/Unlock commands
     if message.content.startswith('?lock') or message.content.startswith('?unlock'):
-        # Check if user has permission to manage channels
-        if not message.author.guild_permissions.manage_channels:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1179,11 +1022,10 @@ async def on_message(message):
     
     # Snipe command
     if message.content.startswith('?snipe'):
-        # Check if user has permission to view audit logs
-        if not message.author.guild_permissions.view_audit_log:
+        if not has_staff_role(message.author):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You don't have permission to use this command!",
+                description="You need the staff role to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1241,6 +1083,15 @@ async def on_message(message):
     
     # Server Info command
     if message.content.startswith('?serverinfo'):
+        if not has_staff_role(message.author):
+            error_embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="You need the staff role to use this command!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+        
         try:
             guild = message.guild
             
@@ -1355,37 +1206,8 @@ async def on_message(message):
             value="• All moderation actions are logged\n• Maximum purge amount: 100 messages\n• Slowmode range: 0-21600 seconds (6 hours)",
             inline=False
         )
-        mod_embed.set_footer(text="Page 1/5 • Use reactions to navigate")
+        mod_embed.set_footer(text="Page 1/4 • Use reactions to navigate")
         pages.append(mod_embed)
-        
-        # Leveling System Page
-        level_embed = discord.Embed(
-            title="📈 Leveling System",
-            description="Earn XP by chatting and climb the leaderboard!",
-            color=discord.Color.green()
-        )
-        level_embed.add_field(
-            name="🎮 Commands",
-            value="```?level\n?leaderboard / ?lb```",
-            inline=False
-        )
-        level_embed.add_field(
-            name="📊 Level Information",
-            value="• Gain 15-25 XP per message\n• 60-second cooldown between XP gains\n• Automatic level-up notifications\n• Weekly leaderboard resets",
-            inline=False
-        )
-        level_embed.add_field(
-            name="🏆 Special Roles",
-            value="• Copper (Level 10)\n• Iron (Level 25)\n• Lapis (Level 50)\n• Gold (Level 75)\n• Diamond (Level 100)\n• Emerald (Level 125)\n• Netherite (Level 150)",
-            inline=False
-        )
-        level_embed.add_field(
-            name="👑 Weekly Rewards",
-            value="• Yapatron role for #1 player\n• 10 Sages of Yapatron for top 10\n• Roles reset weekly",
-            inline=False
-        )
-        level_embed.set_footer(text="Page 2/5 • Use reactions to navigate")
-        pages.append(level_embed)
         
         # Server Management Commands Page
         server_embed = discord.Embed(
@@ -1408,7 +1230,7 @@ async def on_message(message):
             value="• Creates dynamic voice channel\n• Updates automatically\n• Shows non-bot members\n• Admin only command",
             inline=False
         )
-        server_embed.set_footer(text="Page 3/5 • Use reactions to navigate")
+        server_embed.set_footer(text="Page 2/4 • Use reactions to navigate")
         pages.append(server_embed)
         
         # General Commands Page
@@ -1432,7 +1254,7 @@ async def on_message(message):
             value="• Commands are case-insensitive\n• No prefix needed for these commands\n• Available to all members",
             inline=False
         )
-        general_embed.set_footer(text="Page 4/5 • Use reactions to navigate")
+        general_embed.set_footer(text="Page 3/4 • Use reactions to navigate")
         pages.append(general_embed)
         
         # Fun Commands Page
@@ -1456,7 +1278,7 @@ async def on_message(message):
             value="Simply type `?nuke` to activate the command",
             inline=False
         )
-        fun_embed.set_footer(text="Page 5/5 • Use reactions to navigate")
+        fun_embed.set_footer(text="Page 4/4 • Use reactions to navigate")
         pages.append(fun_embed)
         
         # Send the first page
@@ -1491,66 +1313,5 @@ async def on_message(message):
                 # Remove reactions if something goes wrong
                 await help_message.clear_reactions()
                 break
-
-# Weekly leaderboard check task
-async def weekly_leaderboard_check():
-    await client.wait_until_ready()
-    while not client.is_closed():
-        # Get current top users
-        top_users = db.get_top_users()
-        if top_users:
-            # Save current leaderboard
-            db.save_weekly_leaderboard(top_users)
-            
-            # Get the guild
-            guild = client.guilds[0]  # Assuming bot is in one guild
-            
-            # Get or create special roles
-            sages_role = discord.utils.get(guild.roles, name="10 Sages of Yapatron")
-            yapatron_role = discord.utils.get(guild.roles, name="Yapatron")
-            
-            if not sages_role:
-                sages_role = await guild.create_role(name="10 Sages of Yapatron", color=discord.Color.purple())
-            if not yapatron_role:
-                yapatron_role = await guild.create_role(name="Yapatron", color=discord.Color.gold())
-            
-            # Remove roles from current holders
-            for member in guild.members:
-                if sages_role in member.roles:
-                    await member.remove_roles(sages_role)
-                if yapatron_role in member.roles:
-                    await member.remove_roles(yapatron_role)
-            
-            # Add roles to new top users
-            for i, (user_id, level, xp) in enumerate(top_users):
-                member = guild.get_member(user_id)
-                if member:
-                    if i == 0:  # Highest level
-                        await member.add_roles(yapatron_role)
-                    if i < 10:  # Top 10
-                        await member.add_roles(sages_role)
-            
-            # Send announcement
-            announcement_channel = guild.system_channel
-            if announcement_channel:
-                announcement_embed = discord.Embed(
-                    title="🏆 Weekly Leaderboard Update",
-                    description="New roles have been assigned to the top levelers!",
-                    color=discord.Color.gold()
-                )
-                announcement_embed.add_field(
-                    name="Yapatron",
-                    value=f"<@{top_users[0][0]}> has earned the Yapatron role!",
-                    inline=False
-                )
-                announcement_embed.add_field(
-                    name="10 Sages of Yapatron",
-                    value="\n".join([f"<@{user_id}>" for user_id, _, _ in top_users[1:10]]),
-                    inline=False
-                )
-                await announcement_channel.send(embed=announcement_embed)
-        
-        # Wait for one week
-        await asyncio.sleep(7 * 24 * 60 * 60)  # 7 days
 
 client.run(os.getenv('DISCORD_TOKEN'))
