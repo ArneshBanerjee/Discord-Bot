@@ -16,13 +16,41 @@ intents.members = True  # Enable member intents for muting
 
 # Define channel IDs
 MOD_LOG_CHANNEL_ID = 1094940763441336340  # Channel for moderation logs
-STAFF_ROLE_ID = 1322109984036622346  # Role ID for staff members
+
+# Define role IDs and their permissions
+ROLE_PERMISSIONS = {
+    # Tier 1: Basic moderation (mute/unmute only)
+    1322109984036622346: ['mute', 'unmute'],
+    
+    # Tier 2: Moderate moderation (mute, unmute, purge, kick)
+    1322099468480417832: ['mute', 'unmute', 'purge', 'kick'],
+    
+    # Tier 3: Advanced moderation (mute, unmute, kick, ban, unban, purge)
+    1322098045613248563: ['mute', 'unmute', 'kick', 'ban', 'unban', 'purge'],
+    
+    # Tier 4: Full access (all commands)
+    1322094447030177863: ['*'],
+    1322091136059310100: ['*'],
+    1330618191050969129: ['*'],
+    1322090684810924033: ['*']
+}
 
 client = discord.Client(intents=intents)
 
-def has_staff_role(member):
-    """Check if a member has the staff role."""
-    return any(role.id == STAFF_ROLE_ID for role in member.roles)
+def has_command_permission(member, command):
+    """Check if a member has permission to use a specific command."""
+    # Get all role IDs the member has
+    member_role_ids = [role.id for role in member.roles]
+    
+    # Check each role's permissions
+    for role_id in member_role_ids:
+        if role_id in ROLE_PERMISSIONS:
+            permissions = ROLE_PERMISSIONS[role_id]
+            # If role has full access or specific command permission
+            if '*' in permissions or command in permissions:
+                return True
+    
+    return False
 
 @client.event
 async def on_ready():
@@ -35,10 +63,10 @@ async def on_message(message):
     
     # Handle member count command
     if message.content.startswith('?memcount'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'memcount'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -89,10 +117,10 @@ async def on_message(message):
     
     # Handle unban command
     if message.content.startswith('?unban'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'unban'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -190,10 +218,10 @@ async def on_message(message):
     
     # Handle ban command
     if message.content.startswith('?ban'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'ban'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -319,10 +347,10 @@ async def on_message(message):
     
     # Handle unmute command
     if message.content.startswith('?unmute'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'unmute'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -418,10 +446,10 @@ async def on_message(message):
     
     # Handle kick command
     if message.content.startswith('?kick'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'kick'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -525,10 +553,10 @@ async def on_message(message):
     
     # Handle mute command
     if message.content.startswith('?mute'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'mute'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -810,10 +838,10 @@ async def on_message(message):
 
     # Purge command
     if message.content.startswith('?purge'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'purge'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -900,10 +928,10 @@ async def on_message(message):
     
     # Slowmode command
     if message.content.startswith('?slowmode'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'slowmode'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -973,10 +1001,10 @@ async def on_message(message):
     
     # Lock/Unlock commands
     if message.content.startswith('?lock') or message.content.startswith('?unlock'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'lock'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1022,10 +1050,10 @@ async def on_message(message):
     
     # Snipe command
     if message.content.startswith('?snipe'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'snipe'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
@@ -1083,10 +1111,10 @@ async def on_message(message):
     
     # Server Info command
     if message.content.startswith('?serverinfo'):
-        if not has_staff_role(message.author):
+        if not has_command_permission(message.author, 'serverinfo'):
             error_embed = discord.Embed(
                 title="❌ Permission Denied",
-                description="You need the staff role to use this command!",
+                description="You don't have permission to use this command!",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
