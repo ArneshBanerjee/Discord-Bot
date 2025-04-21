@@ -38,6 +38,9 @@ ROLE_PERMISSIONS = {
 # Store reaction rules
 reaction_rules = {}
 
+# Store active autosend tasks
+autosend_tasks = {}
+
 client = discord.Client(intents=intents)
 
 def has_command_permission(member, command):
@@ -1532,5 +1535,188 @@ async def on_message(message):
         )
         about_embed.set_footer(text=f"Requested by {message.author.name}")
         await message.channel.send(embed=about_embed)
+
+    # Handle autosend command
+    if message.content.startswith('?autosend'):
+        # Check if user has permission (only specific roles)
+        allowed_roles = [1322091136059310100, 1322090684810924033, 1322094447030177863]
+        if not any(role.id in allowed_roles for role in message.author.roles):
+            error_embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="You don't have permission to use this command!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+        
+        # Parse command arguments
+        args = message.content.split()
+        if len(args) < 4:
+            help_embed = discord.Embed(
+                title="ℹ️ Autosend Command Help",
+                description="Usage: ?autosend <channel_id> <interval> <message>",
+                color=discord.Color.blue()
+            )
+            help_embed.add_field(
+                name="Interval Format",
+                value="Number followed by unit:\n- m (minutes)\n- h (hours)\n- d (days)",
+                inline=False
+            )
+            help_embed.add_field(
+                name="Example",
+                value="?autosend 123456789012345678 1h Hello World!",
+                inline=False
+            )
+            await message.channel.send(embed=help_embed)
+            return
+        
+        try:
+            # Get channel ID
+            channel_id = int(args[1])
+            channel = client.get_channel(channel_id)
+            if not channel:
+                error_embed = discord.Embed(
+                    title="❌ Invalid Channel",
+                    description="Could not find the specified channel!",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=error_embed)
+                return
+            
+            # Parse interval
+            interval_str = args[2]
+            match = re.match(r'^(\d+)([mhd])$', interval_str.lower())
+            if not match:
+                raise ValueError("Invalid interval format")
+            
+            interval = int(match.group(1))
+            unit = match.group(2)
+            
+            # Convert to seconds
+            if unit == 'm':
+                interval_seconds = interval * 60
+            elif unit == 'h':
+                interval_seconds = interval * 3600
+            elif unit == 'd':
+                interval_seconds = interval * 86400
+            
+            # Get message content
+            message_content = ' '.join(args[3:])
+            
+            # Create embed for the message
+            embed = discord.Embed(
+                description=message_content,
+                color=discord.Color.blue()
+            )
+            embed.set_footer(text=f"Auto-sent every {interval_str}")
+            
+            # Create task
+            async def send_message():
+                while True:
+                    try:
+                        await channel.send(embed=embed)
+                        await asyncio.sleep(interval_seconds)
+                    except Exception as e:
+                        print(f"Error in autosend task: {e}")
+                        break
+            
+            # Start task
+            task = asyncio.create_task(send_message())
+            autosend_tasks[channel_id] = task
+            
+            # Send confirmation
+            confirm_embed = discord.Embed(
+                title="✅ Autosend Started",
+                description=f"Message will be sent to <#{channel_id}> every {interval_str}",
+                color=discord.Color.green()
+            )
+            confirm_embed.add_field(
+                name="Message",
+                value=message_content,
+                inline=False
+            )
+            await message.channel.send(embed=confirm_embed)
+            
+        except ValueError:
+            error_embed = discord.Embed(
+                title="❌ Invalid Interval",
+                description="Invalid interval format!\n\nValid formats:\n- m (minutes)\n- h (hours)\n- d (days)",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ Error",
+                description=f"An error occurred: {str(e)}",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+    
+    # Handle autosendstop command
+    if message.content.startswith('?autosendstop'):
+        # Check if user has permission (only specific roles)
+        allowed_roles = [1322091136059310100, 1322090684810924033, 1322094447030177863]
+        if not any(role.id in allowed_roles for role in message.author.roles):
+            error_embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="You don't have permission to use this command!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+        
+        # Parse command arguments
+        args = message.content.split()
+        if len(args) < 2:
+            help_embed = discord.Embed(
+                title="ℹ️ Autosendstop Command Help",
+                description="Usage: ?autosendstop <channel_id>",
+                color=discord.Color.blue()
+            )
+            help_embed.add_field(
+                name="Example",
+                value="?autosendstop 123456789012345678",
+                inline=False
+            )
+            await message.channel.send(embed=help_embed)
+            return
+        
+        try:
+            channel_id = int(args[1])
+            
+            if channel_id in autosend_tasks:
+                # Cancel the task
+                autosend_tasks[channel_id].cancel()
+                del autosend_tasks[channel_id]
+                
+                # Send confirmation
+                confirm_embed = discord.Embed(
+                    title="✅ Autosend Stopped",
+                    description=f"Stopped auto-sending messages to <#{channel_id}>",
+                    color=discord.Color.green()
+                )
+                await message.channel.send(embed=confirm_embed)
+            else:
+                error_embed = discord.Embed(
+                    title="❌ No Active Task",
+                    description=f"No active autosend task found for channel <#{channel_id}>",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=error_embed)
+                
+        except ValueError:
+            error_embed = discord.Embed(
+                title="❌ Invalid Channel ID",
+                description="Please provide a valid channel ID!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ Error",
+                description=f"An error occurred: {str(e)}",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
 
 client.run(os.getenv('DISCORD_TOKEN'))
