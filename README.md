@@ -1,49 +1,46 @@
-# PorkBot - Discord Moderation & Leveling Bot
+# PorkBot
 
-A feature-rich Discord bot with moderation tools and a leveling system.
+PorkBot is a Discord bot designed to manage and moderate the Porkchop SMP server. It includes a variety of commands for moderation, server management, and fun interactions.
 
 ## Features
+- Moderation commands (mute, unmute, ban, unban, kick, purge, etc.)
+- Server management commands (server info, member count, autosend, etc.)
+- Fun commands (e.g., `?nuke`)
+- Automatic reactions and member tracking
+
+## Commands
 
 ### Moderation Commands
-- `?mute` - Mute users with customizable duration
-- `?unmute` - Unmute users
-- `?ban` - Ban users with reason
-- `?unban` - Unban users
-- `?kick` - Kick users with reason
-- `?purge` - Bulk delete messages
-- `?snipe` - View last deleted message
-- `?lock`/`?unlock` - Lock/unlock channels
-- `?slowmode` - Set channel slowmode
+- `?mute @user <duration> <reason>` - Temporarily mutes a user.
+- `?unmute @user` - Unmutes a user.
+- `?ban @user/user_id <reason>` - Bans a user.
+- `?unban <user_id>` - Unbans a user.
+- `?kick @user <reason>` - Kicks a user.
+- `?purge <amount> [@user]` - Deletes a specified number of messages.
 
-### Leveling System
-- Automatic XP gain from chatting
-- Level roles (Copper, Iron, Lapis, Gold, Diamond, Emerald, Netherite)
-- Weekly leaderboard with special roles
-- `?level` - Check your level stats
-- `?leaderboard`/`?lb` - View server leaderboard
-
-### Server Management
-- `?serverinfo` - View server statistics
-- `?memcount` - Create member count voice channel
+### Server Management Commands
+- `?serverinfo` - Displays server statistics and information.
+- `?memcount` - Creates a dynamic voice channel showing the member count.
+- `?autosend <channel_id> <interval> <message>` - Automatically sends a message to a channel at a specified interval.
+  - **Interval Format**: Use `m` (minutes), `h` (hours), or `d` (days).
+  - **Example**: `?autosend 123456789012345678 1h Hello World!`
+- `?autosendstop <channel_id>` - Stops the autosend task for a specific channel.
 
 ### General Commands
-- Welcome messages
-- Server status
-- Staff contact
-- Event information
+- `hello` - Sends a welcome message.
+- `ip` / `the ip` - Displays server status.
+- `end fight` - Provides information about the End Fight event.
+- `staff` - Displays staff contact information.
+
+### Fun Commands
+- `?nuke` - A troll command that mutes the user for 24 hours with a funny message.
 
 ## Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/ArneshBanerjee/PorkBot.git
-cd PorkBot
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+1. Clone the repository.
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. Create a `.env` file with your bot token:
 ```
@@ -77,4 +74,4 @@ Feel free to submit issues and enhancement requests!
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
