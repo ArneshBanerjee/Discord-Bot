@@ -1686,7 +1686,13 @@ async def on_message(message):
             
             if channel_id in autosend_tasks:
                 # Cancel the task
-                autosend_tasks[channel_id].cancel()
+                task = autosend_tasks[channel_id]
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                
                 del autosend_tasks[channel_id]
                 
                 # Send confirmation
