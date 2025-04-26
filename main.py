@@ -85,11 +85,36 @@ async def on_ready():
     # You can access this information later if needed
     client.about_me = about_me
 
+# Add a dictionary to track the last "hello" response time for each user
+last_hello_time = {}
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
-    
+
+    # Handle "hello" command with a 5-minute cooldown per user
+    if 'hello' in message.content.lower().split():
+        user_id = message.author.id
+        current_time = datetime.utcnow()
+
+        # Check if the user is in the last_hello_time dictionary
+        if user_id in last_hello_time:
+            time_since_last_hello = (current_time - last_hello_time[user_id]).total_seconds()
+            if time_since_last_hello < 300:  # 300 seconds = 5 minutes
+                return  # Ignore the message if it's within the cooldown period
+
+        # Update the last_hello_time for the user
+        last_hello_time[user_id] = current_time
+
+        # Send the "hello" response
+        embed = discord.Embed(
+            title="👋 Welcome to Porkchop SMP!",
+            description="We're glad to have you here!",
+            color=discord.Color.green()
+        )
+        await message.channel.send(content=message.author.mention, embed=embed)
+
     # Check for reaction rules
     for target, emoji in reaction_rules.items():
         # Check if message mentions the target user
@@ -915,14 +940,6 @@ async def on_message(message):
                 color=discord.Color.red()
             )
             await message.channel.send(embed=error_embed)
-    
-    if 'hello' in message.content.lower().split():
-        embed = discord.Embed(
-            title="👋 Welcome to Porkchop SMP!",
-            description="We're glad to have you here!",
-            color=discord.Color.green()
-        )
-        await message.channel.send(content=message.author.mention, embed=embed)
     
     if 'ip' in message.content.lower().split() and 'the' not in message.content.lower().split():
         embed = discord.Embed(
