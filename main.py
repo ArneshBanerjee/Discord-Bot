@@ -944,7 +944,7 @@ async def on_message(message):
     if 'ip' in message.content.lower().split() and 'the' not in message.content.lower().split():
         embed = discord.Embed(
             title="🌐 Server Status",
-            description="The server is currently undergoing seasonal reset and will start in the first week of May.",
+            description="The ip is `mc.porkchopsmp.online`. Don't forget to claim your free start kits using /kit.",
             color=discord.Color.blue()
         )
         await message.channel.send(content=message.author.mention, embed=embed)
@@ -955,7 +955,7 @@ async def on_message(message):
             if message.content.lower().split()[i] == 'the' and message.content.lower().split()[i + 1] == 'ip':
                 embed = discord.Embed(
                     title="🌐 Server Status",
-                    description="The server is currently undergoing seasonal reset and will start in the first week of May.",
+                    description="The ip is `mc.porkchopsmp.online`. Don't forget to claim your free start kits using /kit.",
                     color=discord.Color.blue()
                 )
                 await message.channel.send(content=message.author.mention, embed=embed)
@@ -967,7 +967,7 @@ async def on_message(message):
             if message.content.lower().split()[i] == 'end' and message.content.lower().split()[i + 1] == 'fight':
                 embed = discord.Embed(
                     title="⚔️ End Fight Information",
-                    description="Endfight will be announced in [this channel](https://discord.com/channels/1083270436349018163/1093563764479107092).",
+                    description="Endfight will be held on 8th June.",
                     color=discord.Color.red()
                 )
                 await message.channel.send(content=message.author.mention, embed=embed)
