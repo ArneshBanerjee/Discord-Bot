@@ -88,10 +88,116 @@ async def on_ready():
 # Add a dictionary to track the last "hello" response time for each user
 last_hello_time = {}
 
+# Add a dictionary to track the last report time for each user
+last_report_time = {}
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
+
+    # Handle report command
+    if message.content.startswith('?report'):
+        # Check if the message is a reply
+        if not message.reference:
+            error_embed = discord.Embed(
+                title="❌ Invalid Usage",
+                description="You must reply to a message to report it!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+
+        # Check if the user is on cooldown
+        user_id = message.author.id
+        current_time = datetime.utcnow()
+        if user_id in last_report_time:
+            time_since_last_report = (current_time - last_report_time[user_id]).total_seconds()
+            if time_since_last_report < 1800:  # 1800 seconds = 30 minutes
+                cooldown_embed = discord.Embed(
+                    title="⏳ Cooldown Active",
+                    description="You can only make one report every 30 minutes.",
+                    color=discord.Color.orange()
+                )
+                await message.channel.send(embed=cooldown_embed)
+                return
+
+        # Update the last report time for the user
+        last_report_time[user_id] = current_time
+
+        # Get the replied-to message
+        try:
+            replied_message = await message.channel.fetch_message(message.reference.message_id)
+        except discord.NotFound:
+            error_embed = discord.Embed(
+                title="❌ Error",
+                description="Could not find the message you're replying to!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+
+        # Parse the reason
+        args = message.content.split(maxsplit=1)
+        if len(args) < 2:
+            error_embed = discord.Embed(
+                title="❌ Missing Reason",
+                description="You must provide a reason for the report!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+        reason = args[1]
+
+        # Get the report channel
+        report_channel = client.get_channel(1362287716460396675)
+        if not report_channel:
+            error_embed = discord.Embed(
+                title="❌ Error",
+                description="Report channel not found!",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=error_embed)
+            return
+
+        # Create the report embed
+        report_embed = discord.Embed(
+            title="🚨 New Report",
+            description=f"**Reported Message:**\n{replied_message.content}",
+            color=discord.Color.red()
+        )
+        report_embed.add_field(
+            name="Reporter",
+            value=message.author.mention,
+            inline=False
+        )
+        report_embed.add_field(
+            name="Reported User",
+            value=replied_message.author.mention,
+            inline=False
+        )
+        report_embed.add_field(
+            name="Reason",
+            value=reason,
+            inline=False
+        )
+        report_embed.add_field(
+            name="Message Link",
+            value=f"[Jump to Message]({replied_message.jump_url})",
+            inline=False
+        )
+        report_embed.set_footer(text=f"Reported at {datetime.utcnow()}")
+
+        # Send the report to the report channel
+        await report_channel.send(embed=report_embed)
+
+        # Confirm the report to the reporter
+        confirm_embed = discord.Embed(
+            title="✅ Report Submitted",
+            description="Your report has been submitted successfully.",
+            color=discord.Color.green()
+        )
+        await message.channel.send(embed=confirm_embed)
 
     # Handle "hello" command with a 5-minute cooldown per user
     if 'hello' in message.content.lower().split():
