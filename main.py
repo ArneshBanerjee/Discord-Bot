@@ -113,7 +113,7 @@ async def on_message(message):
         current_time = datetime.utcnow()
         if user_id in last_report_time:
             time_since_last_report = (current_time - last_report_time[user_id]).total_seconds()
-            if time_since_last_report < 1800:  # 1800 seconds = 30 minutes
+            if time_since_last_report < 300:  # 1800 seconds = 30 minutes
                 cooldown_embed = discord.Embed(
                     title="⏳ Cooldown Active",
                     description="You can only make one report every 30 minutes.",
