@@ -1,4 +1,4 @@
-# PorkBot
+# Discord-Bot
 
 PorkBot is a Discord bot designed to manage and moderate the Porkchop SMP server. It includes a variety of commands for moderation, server management, and fun interactions.
 
